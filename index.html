@@ -11,9 +11,14 @@
             box-sizing: border-box;
         }
 
-        body {
+        html, body {
             width: 100vw;
             height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
             transition: background-color 0.2s ease;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             cursor: pointer;
@@ -365,7 +370,9 @@
             satValue.textContent = s;
             valValue.textContent = v;
             
-            document.body.style.backgroundColor = hsvToRgb(h, s, v);
+            const color = hsvToRgb(h, s, v);
+            document.body.style.backgroundColor = color;
+            document.documentElement.style.backgroundColor = color;
         }
 
         hueSlider.addEventListener('input', updateBackground);
@@ -458,18 +465,29 @@
             energyHistory = [];
         }
 
-        document.body.addEventListener('dblclick', () => {
+        document.body.addEventListener('dblclick', async () => {
             if (!isFullscreen) {
-                if (document.body.requestFullscreen) {
-                    document.body.requestFullscreen();
-                } else if (document.body.webkitRequestFullscreen) {
-                    document.body.webkitRequestFullscreen();
-                } else if (document.body.msRequestFullscreen) {
-                    document.body.msRequestFullscreen();
-                }
                 document.body.classList.add('fullscreen');
                 isFullscreen = true;
+                
+                try {
+                    const element = document.documentElement;
+                    if (element.requestFullscreen) {
+                        await element.requestFullscreen();
+                    } else if (element.webkitRequestFullscreen) {
+                        await element.webkitRequestFullscreen();
+                    } else if (element.msRequestFullscreen) {
+                        await element.msRequestFullscreen();
+                    }
+                } catch (err) {
+                    console.error('Fullscreen error:', err);
+                    document.body.classList.remove('fullscreen');
+                    isFullscreen = false;
+                }
             } else {
+                document.body.classList.remove('fullscreen');
+                isFullscreen = false;
+                
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
                 } else if (document.webkitExitFullscreen) {
@@ -477,24 +495,28 @@
                 } else if (document.msExitFullscreen) {
                     document.msExitFullscreen();
                 }
-                document.body.classList.remove('fullscreen');
-                isFullscreen = false;
             }
         });
 
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
+        function handleFullscreenChange() {
+            const isFullscreenActive = !!(document.fullscreenElement || 
+                                         document.webkitFullscreenElement || 
+                                         document.msFullscreenElement);
+            
+            if (isFullscreenActive) {
+                // フルスクリーン時に色を再設定
+                requestAnimationFrame(() => {
+                    updateBackground();
+                });
+            } else {
                 document.body.classList.remove('fullscreen');
                 isFullscreen = false;
             }
-        });
+        }
 
-        document.addEventListener('webkitfullscreenchange', () => {
-            if (!document.webkitFullscreenElement) {
-                document.body.classList.remove('fullscreen');
-                isFullscreen = false;
-            }
-        });
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('msfullscreenchange', handleFullscreenChange);
 
         function renderFavorites() {
             favoritesList.innerHTML = '';
