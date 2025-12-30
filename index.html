@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSV Color Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            transition: background-color 0.2s ease;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .controller {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            width: 200px;
+            transition: all 0.3s ease;
+        }
+
+        .controller.collapsed {
+            width: auto;
+            padding: 10px;
+        }
+
+        .toggle-btn {
+            width: 20px;
+            height: 20px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .controller.collapsed .toggle-btn {
+            margin-bottom: 0;
+        }
+
+        .toggle-btn:hover {
+            background: #555;
+        }
+
+        .controller-content {
+            transition: all 0.3s ease;
+        }
+
+        .controller.collapsed .controller-content {
+            display: none;
+        }
+
+        .slider-group {
+            margin-bottom: 12px;
+        }
+
+        .slider-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .value-display {
+            float: right;
+            color: #666;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+            border: none;
+        }
+
+        #hueSlider {
+            background: linear-gradient(to right, 
+                hsl(0, 100%, 50%), 
+                hsl(60, 100%, 50%), 
+                hsl(120, 100%, 50%), 
+                hsl(180, 100%, 50%), 
+                hsl(240, 100%, 50%), 
+                hsl(300, 100%, 50%), 
+                hsl(360, 100%, 50%)
+            );
+        }
+
+        #satSlider {
+            background: linear-gradient(to right, #ccc, hsl(0, 100%, 50%));
+        }
+
+        #valSlider {
+            background: linear-gradient(to right, #000, #fff);
+        }
+
+        .favorites {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+        }
+
+        .favorites-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .favorites-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .save-btn {
+            width: 24px;
+            height: 24px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .save-btn:hover {
+            background: #555;
+        }
+
+        .favorites-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .favorite-item {
+            width: 32px;
+            height: 32px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .favorite-item:hover {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 16px;
+            height: 16px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 10px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .favorite-item:hover .delete-btn {
+            display: flex;
+        }
+
+        .audio-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #ddd;
+        }
+
+        .audio-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .audio-control input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .audio-control label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .audio-status {
+            font-size: 10px;
+            color: #999;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controller" id="controller">
+        <button class="toggle-btn" id="toggleBtn">−</button>
+        <div class="controller-content">
+            <div class="slider-group">
+            <label>
+                H (色相)
+                <span class="value-display" id="hueValue">0</span>
+            </label>
+            <input type="range" id="hueSlider" min="0" max="360" value="0">
+        </div>
+        <div class="slider-group">
+            <label>
+                S (彩度)
+                <span class="value-display" id="satValue">100</span>
+            </label>
+            <input type="range" id="satSlider" min="0" max="100" value="100">
+        </div>
+        <div class="slider-group">
+            <label>
+                V (明度)
+                <span class="value-display" id="valValue">100</span>
+            </label>
+            <input type="range" id="valSlider" min="0" max="100" value="100">
+        </div>
+        <div class="favorites">
+            <div class="favorites-header">
+                <div class="favorites-title">お気に入り</div>
+                <button class="save-btn" id="saveBtn">+</button>
+            </div>
+            <div class="favorites-list" id="favoritesList"></div>
+        </div>
+        <div class="audio-section">
+            <div class="audio-control">
+                <input type="checkbox" id="audioReactive" />
+                <label for="audioReactive">音に反応</label>
+            </div>
+            <div class="audio-status" id="audioStatus"></div>
+        </div>
+        </div>
+    </div>
+
+    <script>
+        const hueSlider = document.getElementById('hueSlider');
+        const satSlider = document.getElementById('satSlider');
+        const valSlider = document.getElementById('valSlider');
+        const hueValue = document.getElementById('hueValue');
+        const satValue = document.getElementById('satValue');
+        const valValue = document.getElementById('valValue');
+        const saveBtn = document.getElementById('saveBtn');
+        const favoritesList = document.getElementById('favoritesList');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const controller = document.getElementById('controller');
+        const audioReactive = document.getElementById('audioReactive');
+        const audioStatus = document.getElementById('audioStatus');
+
+        let favorites = [];
+        let isCollapsed = false;
+        let audioContext = null;
+        let analyser = null;
+        let microphone = null;
+        let animationId = null;
+        let beatThreshold = 1.3;
+        let energyHistory = [];
+
+        function hsvToRgb(h, s, v) {
+            s /= 100;
+            v /= 100;
+            
+            const c = v * s;
+            const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            const m = v - c;
+            
+            let r, g, b;
+            
+            if (h < 60) {
+                r = c; g = x; b = 0;
+            } else if (h < 120) {
+                r = x; g = c; b = 0;
+            } else if (h < 180) {
+                r = 0; g = c; b = x;
+            } else if (h < 240) {
+                r = 0; g = x; b = c;
+            } else if (h < 300) {
+                r = x; g = 0; b = c;
+            } else {
+                r = c; g = 0; b = x;
+            }
+            
+            r = Math.round((r + m) * 255);
+            g = Math.round((g + m) * 255);
+            b = Math.round((b + m) * 255);
+            
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function updateBackground() {
+            const h = parseInt(hueSlider.value);
+            const s = parseInt(satSlider.value);
+            const v = parseInt(valSlider.value);
+            
+            hueValue.textContent = h;
+            satValue.textContent = s;
+            valValue.textContent = v;
+            
+            document.body.style.backgroundColor = hsvToRgb(h, s, v);
+        }
+
+        hueSlider.addEventListener('input', updateBackground);
+        satSlider.addEventListener('input', updateBackground);
+        valSlider.addEventListener('input', updateBackground);
+
+        saveBtn.addEventListener('click', () => {
+            const h = parseInt(hueSlider.value);
+            const s = parseInt(satSlider.value);
+            const v = parseInt(valSlider.value);
+            
+            favorites.push({ h, s, v });
+            renderFavorites();
+        });
+
+        toggleBtn.addEventListener('click', () => {
+            isCollapsed = !isCollapsed;
+            controller.classList.toggle('collapsed');
+            toggleBtn.textContent = isCollapsed ? '+' : '−';
+        });
+
+        audioReactive.addEventListener('change', async () => {
+            if (audioReactive.checked) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    microphone = audioContext.createMediaStreamSource(stream);
+                    
+                    analyser.fftSize = 256;
+                    microphone.connect(analyser);
+                    
+                    audioStatus.textContent = '音を検知中...';
+                    startAudioReactive();
+                } catch (err) {
+                    audioStatus.textContent = 'マイクへのアクセスが拒否されました';
+                    audioReactive.checked = false;
+                }
+            } else {
+                stopAudioReactive();
+                audioStatus.textContent = '';
+            }
+        });
+
+        function startAudioReactive() {
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            function detectBeat() {
+                if (!audioReactive.checked) return;
+                
+                analyser.getByteFrequencyData(dataArray);
+                
+                const sum = dataArray.reduce((a, b) => a + b, 0);
+                const average = sum / dataArray.length;
+                
+                energyHistory.push(average);
+                if (energyHistory.length > 40) {
+                    energyHistory.shift();
+                }
+                
+                const historyAverage = energyHistory.reduce((a, b) => a + b, 0) / energyHistory.length;
+                
+                if (average > historyAverage * beatThreshold && energyHistory.length >= 20) {
+                    const randomH = Math.floor(Math.random() * 360);
+                    hueSlider.value = randomH;
+                    updateBackground();
+                    
+                    energyHistory = energyHistory.slice(-20);
+                }
+                
+                animationId = requestAnimationFrame(detectBeat);
+            }
+            
+            detectBeat();
+        }
+
+        function stopAudioReactive() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            if (microphone) {
+                microphone.disconnect();
+                microphone = null;
+            }
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            energyHistory = [];
+        }
+
+        function renderFavorites() {
+            favoritesList.innerHTML = '';
+            favorites.forEach((fav, index) => {
+                const item = document.createElement('div');
+                item.className = 'favorite-item';
+                item.style.backgroundColor = hsvToRgb(fav.h, fav.s, fav.v);
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '×';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    favorites.splice(index, 1);
+                    renderFavorites();
+                });
+                
+                item.addEventListener('click', () => {
+                    hueSlider.value = fav.h;
+                    satSlider.value = fav.s;
+                    valSlider.value = fav.v;
+                    updateBackground();
+                });
+                
+                item.appendChild(deleteBtn);
+                favoritesList.appendChild(item);
+            });
+        }
+
+        updateBackground();
+    </script>
+</body>
+</html>
